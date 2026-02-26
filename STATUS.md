@@ -1,43 +1,46 @@
-# Status Report: Tiny Programmer on RPi Zero 2 W
+# Status Report: TinyProgrammer on RPi 4
 
-**Date:** February 4, 2026
-**Hardware:** Raspberry Pi Zero 2 W + Waveshare 4-inch LCD (A) [SPI, ILI9486]
-**OS:** Debian Trixie (64-bit)
+**Date:** February 2026
+**Hardware:** Raspberry Pi 4 + 5-inch HDMI display
+**OS:** Raspberry Pi OS (64-bit)
 
 ## Current State: WORKING
 
-### Display: SOLVED
-The SPI display now works with Python/Pygame using **direct framebuffer writes**.
+### Display: WORKING
+Direct framebuffer writes to `/dev/fb0` over HDMI. Pygame runs in `dummy` video driver mode (in-memory rendering), surfaces converted to RGB565 and written directly to framebuffer.
 
-**Solution:** Bypass SDL's broken `fbcon` driver by:
-1. Using pygame's `dummy` video driver for in-memory rendering
-2. Converting pygame surfaces to RGB565 format
-3. Writing directly to `/dev/fb0` using Python's `open().write()`
+**Performance:** ~60 fps target, ~20-30 fps effective for full-screen updates
 
-**Performance:** ~20 fps for full-screen updates (acceptable for this use case)
+### AI Backend: WORKING
+- **Provider:** OpenRouter API
+- **Model:** DeepSeek (configurable via dashboard)
+- Streams tokens directly into the editor in real time
 
-### Files Changed
-- `display/framebuffer.py` - New: Direct framebuffer writer with RGB888→RGB565 conversion
-- `display/terminal.py` - Modified: Uses in-memory pygame surface + fb writer
-- `display/__init__.py` - Modified: Exports new framebuffer module
-
-### Technical Details
-- Framebuffer device: `/dev/fb0` (ILI9486 via fbtft)
-- Format: 480x320, 16bpp RGB565
-- Driver: `fb_ili9486` with deferred I/O
-- The fbtft driver's `fb_write()` callback triggers SPI transfer automatically
-
-## Previous Issue (Resolved)
-
-SDL2/Pygame on Bookworm/Trixie cannot use `fbcon` driver (deprecated) and `kmsdrm` only works with HDMI. The solution was to not rely on SDL for display output at all.
-
-## Application Status
-- **AI Code Generation:** Working (Qwen 2.5 0.5B via Ollama)
+### Application Status
+- **AI Code Generation:** Working
 - **Self-correction Loop:** Working
 - **tiny_canvas API:** Working
-- **Display Output:** Working (direct framebuffer)
+- **Display Output:** Working (direct framebuffer, HDMI)
+- **Web Dashboard:** Working (Flask, port 5000)
+- **Autostart on Boot:** Working (systemd service)
+- **Color Schemes:** Working (amber, green, blue, inverted, none)
 
-## Next Steps
-1. Test full main.py workflow end-to-end
-2. Optimize framebuffer writes if needed (dirty rectangles)
-3. Continue with v0.4 features (Archive)
+### Systemd Service
+Installed at `/etc/systemd/system/tinyprogrammer.service`. Autostarts on boot, restarts on failure. Console cursor hidden via `fbcon/cursor_blink`.
+
+Management:
+```bash
+sudo systemctl status tinyprogrammer
+sudo systemctl stop tinyprogrammer    # stop before shutdown!
+sudo systemctl restart tinyprogrammer
+journalctl -u tinyprogrammer -f
+```
+
+## Branch Notes
+
+This branch (`rpi4-hdmi`) diverges from the original `main` branch (Pi Zero 2 W + Waveshare SPI LCD). Key differences:
+- HDMI output instead of SPI display
+- OpenRouter/DeepSeek instead of local Ollama/llama.cpp
+- Web dashboard for remote settings
+- Systemd autostart
+- Color adjustment layer
