@@ -92,12 +92,29 @@ def main():
         github_repo=config.GITHUB_REPO
     )
     
+    # Initialize BBS client (optional social layer)
+    bbs_client = None
+    if getattr(config, 'BBS_ENABLED', False):
+        try:
+            from bbs.client import BBSClient
+            bbs_client = BBSClient(
+                supabase_url=config.BBS_SUPABASE_URL,
+                supabase_anon_key=config.BBS_SUPABASE_ANON_KEY,
+                edge_function_url=config.BBS_EDGE_FUNCTION_URL,
+                device_name=config.BBS_DEVICE_NAME,
+            )
+            print(f"[BBS] Registered as: {bbs_client.device_name}")
+        except Exception as e:
+            print(f"[BBS] Init failed, BBS disabled: {e}")
+            bbs_client = None
+
     # Initialize brain (main state machine)
     brain = Brain(
         terminal=terminal,
         llm=llm,
         personality=personality,
-        archive=archive
+        archive=archive,
+        bbs_client=bbs_client,
     )
     
     print("[Tiny Programmer] All systems ready.")

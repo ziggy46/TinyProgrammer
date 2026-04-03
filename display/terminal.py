@@ -103,6 +103,11 @@ class Terminal:
         self.canvas_image = None
         self._load_canvas_assets()
 
+        # BBS mode state
+        self._bbs_mode = False
+        self._bbs_compose_text = ""
+        self._bbs_compose_label = ""
+
         # Performance
         self.clock = pygame.time.Clock() if PYGAME_AVAILABLE else None
         self._dirty = True
@@ -532,3 +537,239 @@ class Terminal:
 
     def check_ghosting_refresh(self):
         pass
+
+    # =========================================================================
+    # BBS Display Mode
+    # =========================================================================
+
+    BBS_COLORS = {
+        "green":  {"text": (51, 255, 51), "dim": (51, 90, 51), "accent": (255, 170, 0), "bg": (10, 10, 10), "border": (26, 90, 26)},
+        "amber":  {"text": (255, 176, 0), "dim": (128, 88, 0), "accent": (255, 220, 100), "bg": (10, 8, 2), "border": (90, 62, 0)},
+        "white":  {"text": (200, 200, 200), "dim": (100, 100, 100), "accent": (255, 255, 255), "bg": (10, 10, 10), "border": (60, 60, 60)},
+    }
+
+    BBS_BANNER = [
+        " _____ _             ____  ____  ____  ",
+        "|_   _(_)_ __  _   _| __ )| __ )/ ___| ",
+        "  | | | | '_ \\| | | |  _ \\|  _ \\___ \\ ",
+        "  | | | | | | | |_| | |_) | |_) |___) |",
+        "  |_| |_|_| |_|\\__, |____/|____/|____/ ",
+        "               |___/  v0.1",
+    ]
+
+    def _bbs_colors(self):
+        scheme = getattr(config, "BBS_DISPLAY_COLOR", "green")
+        return self.BBS_COLORS.get(scheme, self.BBS_COLORS["green"])
+
+    def enter_bbs_mode(self):
+        """Switch display from IDE to BBS terminal aesthetic."""
+        self._bbs_mode = True
+        self._bbs_compose_text = ""
+        self._bbs_compose_label = ""
+        if not self.mock_mode:
+            colors = self._bbs_colors()
+            self.screen.fill(colors["bg"])
+            self._dirty = True
+            self._render_bbs_banner()
+
+    def exit_bbs_mode(self):
+        """Switch back to IDE display."""
+        self._bbs_mode = False
+        if not self.mock_mode and self.bg_image:
+            self.screen.blit(self.bg_image, (0, 0))
+            self._dirty = True
+
+    def _render_bbs_banner(self):
+        """Draw the ASCII art header."""
+        if self.mock_mode:
+            return
+        colors = self._bbs_colors()
+        y = 8
+        for line in self.BBS_BANNER:
+            surf = self.font.render(line, True, colors["accent"])
+            self.screen.blit(surf, (16, y))
+            y += self.char_height
+        self._flip(force=True)
+
+    def _bbs_clear_content(self):
+        """Clear the content area below the banner."""
+        if self.mock_mode:
+            return
+        colors = self._bbs_colors()
+        content_y = 95
+        rect = pygame.Rect(0, content_y, self.width, self.height - content_y)
+        pygame.draw.rect(self.screen, colors["bg"], rect)
+
+    def render_bbs_menu(self, stats, device_name):
+        """Render the BBS main menu with board listing."""
+        if self.mock_mode:
+            return
+        colors = self._bbs_colors()
+        self._bbs_clear_content()
+
+        y = 100
+        # Welcome line
+        welcome = f"Welcome, {device_name}!"
+        surf = self.font.render(welcome, True, colors["accent"])
+        self.screen.blit(surf, (16, y))
+        y += self.char_height + 8
+
+        # Separator
+        pygame.draw.line(self.screen, colors["border"], (16, y), (self.width - 16, y))
+        y += 8
+
+        # Board listing
+        board_names = {
+            "code_share": "Code Share",
+            "chat": "Chat",
+            "news": "News",
+            "science_tech": "Science & Tech",
+            "jokes": "Jokes",
+            "lurk_report": "Lurk Report",
+        }
+        stats_map = {s["board"]: s["total_posts"] for s in stats}
+
+        for slug, label in board_names.items():
+            count = stats_map.get(slug, 0)
+            line = f"  [{slug[:3].upper()}]  {label:<20s} ({count} posts)"
+            surf = self.font.render(line, True, colors["text"])
+            self.screen.blit(surf, (16, y))
+            y += self.char_height + 2
+
+        self._flip(force=True)
+
+    def render_bbs_feed(self, board, posts):
+        """Render a flat board feed."""
+        if self.mock_mode:
+            return
+        colors = self._bbs_colors()
+        self._bbs_clear_content()
+
+        y = 100
+        title = f"--- {board.upper()} ---"
+        surf = self.font.render(title, True, colors["accent"])
+        self.screen.blit(surf, (16, y))
+        y += self.char_height + 8
+
+        for p in posts:
+            if y > 400:
+                break
+            author = p.get("author", "?")
+            content = p.get("content", "")[:80]
+            # Author line
+            author_surf = self.font.render(f"{author}:", True, colors["accent"])
+            self.screen.blit(author_surf, (16, y))
+            y += self.char_height
+            # Content line(s)
+            for i in range(0, len(content), 70):
+                chunk = content[i:i+70]
+                txt_surf = self.font.render(chunk, True, colors["text"])
+                self.screen.blit(txt_surf, (24, y))
+                y += self.char_height
+            # Separator
+            y += 4
+
+        self._flip(force=True)
+
+    def render_bbs_thread_list(self, threads):
+        """Render Code Share thread listing."""
+        if self.mock_mode:
+            return
+        colors = self._bbs_colors()
+        self._bbs_clear_content()
+
+        y = 100
+        title_surf = self.font.render("--- CODE SHARE ---", True, colors["accent"])
+        self.screen.blit(title_surf, (16, y))
+        y += self.char_height + 8
+
+        for i, t in enumerate(threads):
+            if y > 400:
+                break
+            title = t.get("title", "untitled")[:40]
+            author = t.get("author", "?")
+            line = f"  {i+1:2d}. {title}  ({author})"
+            surf = self.font.render(line, True, colors["text"])
+            self.screen.blit(surf, (16, y))
+            y += self.char_height + 2
+
+        self._flip(force=True)
+
+    def render_bbs_thread_detail(self, detail):
+        """Render a thread's top post and replies."""
+        if self.mock_mode:
+            return
+        colors = self._bbs_colors()
+        self._bbs_clear_content()
+
+        y = 100
+        post = detail.get("post", {})
+        title = post.get("title", "untitled")
+        author = post.get("author", "?")
+
+        # Title
+        surf = self.font.render(f"[{title}] by {author}", True, colors["accent"])
+        self.screen.blit(surf, (16, y))
+        y += self.char_height + 4
+
+        # Code content (truncated to fit)
+        content = post.get("content", "")
+        for line in content.split("\n")[:12]:
+            if y > 350:
+                break
+            surf = self.font.render(line[:70], True, colors["text"])
+            self.screen.blit(surf, (16, y))
+            y += self.char_height
+
+        # Separator
+        y += 4
+        pygame.draw.line(self.screen, colors["border"], (16, y), (self.width - 16, y))
+        y += 8
+
+        # Replies
+        for r in detail.get("replies", [])[:5]:
+            if y > 430:
+                break
+            rauthor = r.get("author", "?")
+            rcontent = r.get("content", "")[:60]
+            surf = self.font.render(f"{rauthor}: {rcontent}", True, colors["dim"])
+            self.screen.blit(surf, (24, y))
+            y += self.char_height + 2
+
+        self._flip(force=True)
+
+    def render_bbs_compose(self, context):
+        """Show the compose area at the bottom of the BBS screen."""
+        if self.mock_mode:
+            return
+        self._bbs_compose_label = context
+        self._bbs_compose_text = ""
+        colors = self._bbs_colors()
+
+        # Clear compose area
+        rect = pygame.Rect(0, 415, self.width, 25)
+        pygame.draw.rect(self.screen, colors["bg"], rect)
+
+        label = f"composing ({context}) > "
+        surf = self.font.render(label, True, colors["dim"])
+        self.screen.blit(surf, (16, 418))
+        self._flip(force=True)
+
+    def type_bbs_char(self, char):
+        """Type a character in the BBS compose area."""
+        if self.mock_mode:
+            return
+        self._bbs_compose_text += char
+        colors = self._bbs_colors()
+
+        # Redraw compose area
+        rect = pygame.Rect(0, 415, self.width, 25)
+        pygame.draw.rect(self.screen, colors["bg"], rect)
+
+        label = f"composing ({self._bbs_compose_label}) > "
+        # Show last ~50 chars of compose text
+        visible = self._bbs_compose_text[-50:]
+        full = label + visible
+        surf = self.font.render(full, True, colors["text"])
+        self.screen.blit(surf, (16, 418))
+        self._dirty = True
