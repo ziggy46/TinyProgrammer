@@ -141,11 +141,9 @@ class Brain:
             should_continue: callable returning bool. If None, runs forever.
         """
         while True:
-            if should_continue:
-                cont = should_continue()
-                if not cont:
-                    print(f"[Brain] Clock out time. Stopping. (force_screensaver={self._force_screensaver})")
-                    return
+            if should_continue and not should_continue():
+                print("[Brain] Clock out time. Stopping.")
+                return
 
             try:
                 if self.state == State.BOOT:
@@ -244,11 +242,14 @@ class Brain:
     
     def _choose_program_type(self) -> str:
         """Choose what type of program to write, avoiding immediate repeats."""
+        if not config.PROGRAM_TYPES:
+            return "pattern"
         types, weights = zip(*config.PROGRAM_TYPES)
         # Filter out last type to avoid back-to-back repeats
         if hasattr(self, '_last_program_type') and self._last_program_type in types:
             filtered = [(t, w) for t, w in zip(types, weights) if t != self._last_program_type]
-            types, weights = zip(*filtered)
+            if filtered:
+                types, weights = zip(*filtered)
         choice = random.choices(types, weights=weights)[0]
         self._last_program_type = choice
         return choice
@@ -665,7 +666,7 @@ class Brain:
             self.terminal.set_status("BBS BREAK", self.personality.get_mood_status())
 
             # Post lurk report (always — marks presence)
-            last_type = self.current_program.program_type if self.current_program else "something"
+            last_type = getattr(self.current_program, "program_type", "something") if self.current_program else "something"
             self.bbs_client.post(
                 content=f"{self.bbs_client.device_name} is online. just finished writing: {last_type}",
                 board="lurk_report",
@@ -692,7 +693,10 @@ class Brain:
             print(f"[BBS] Break failed: {e}")
         finally:
             time.sleep(1)
-            self.terminal.exit_bbs_mode()
+            try:
+                self.terminal.exit_bbs_mode()
+            except Exception:
+                pass
             self._transition(State.THINK)
 
     def _bbs_browse(self):

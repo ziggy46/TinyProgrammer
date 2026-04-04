@@ -116,15 +116,20 @@ class BBSClient:
         }
 
     def _rest_get(self, path: str, params: dict = None) -> list:
-        """GET from Supabase REST API."""
-        resp = requests.get(
-            f"{self.supabase_url}/rest/v1/{path}",
-            headers=self._rest_headers(),
-            params=params or {},
-            timeout=10,
-        )
-        resp.raise_for_status()
-        return resp.json()
+        """GET from Supabase REST API. Always returns a list."""
+        try:
+            resp = requests.get(
+                f"{self.supabase_url}/rest/v1/{path}",
+                headers=self._rest_headers(),
+                params=params or {},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            result = resp.json()
+            return result if isinstance(result, list) else []
+        except Exception as e:
+            print(f"[BBS] REST GET failed: {e}")
+            return []
 
     def get_flat_feed(self, board: str, limit: int = 30) -> list:
         """Flat board feed (chat, news, science_tech, jokes, lurk_report)."""

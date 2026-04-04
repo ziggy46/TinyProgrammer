@@ -108,6 +108,8 @@ class Terminal:
         self._bbs_mode = False
         self._bbs_compose_text = ""
         self._bbs_compose_label = ""
+        self._terminal_image = None
+        self._bbs_content_y = 0
 
         # Performance
         self.clock = pygame.time.Clock() if PYGAME_AVAILABLE else None
