@@ -566,23 +566,23 @@ class Terminal:
     _BBS_CHROME_X = 12
     _BBS_CHROME_Y = 55
 
-    # Draw area inside terminal.png (relative to chrome position)
+    # Draw area inside Terminal.png (relative to chrome position)
     _BBS_DRAW_OFFSET_X = 5
     _BBS_DRAW_OFFSET_Y = 32
     _BBS_DRAW_W = 763
     _BBS_DRAW_H = 385
 
     def _load_terminal_assets(self):
-        """Load terminal.png chrome for BBS mode."""
+        """Load Terminal.png chrome for BBS mode."""
         if self.mock_mode:
             return
-        term_path = os.path.join(ASSETS_DIR, "terminal.png")
+        term_path = os.path.join(ASSETS_DIR, "Terminal.png")
         if os.path.exists(term_path):
             self._terminal_image = pygame.image.load(term_path)
             print(f"[Terminal] Loaded BBS chrome: {term_path}")
         else:
             self._terminal_image = None
-            print("[Terminal] Warning: terminal.png not found")
+            print("[Terminal] Warning: Terminal.png not found")
 
     def _bbs_colors(self):
         scheme = getattr(config, "BBS_DISPLAY_COLOR", "green")
