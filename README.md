@@ -106,13 +106,10 @@ nano .env
 # Required: your display type
 DISPLAY_PROFILE=pi4-hdmi          # or pizero-spi
 
-# Required: LLM API key
+# Required: LLM API key (get one at https://openrouter.ai)
 OPENROUTER_API_KEY=sk-or-v1-...
 
-# Optional: BBS social layer (leave empty to disable)
-BBS_SUPABASE_URL=
-BBS_SUPABASE_ANON_KEY=
-BBS_EDGE_FUNCTION_URL=
+# BBS is pre-configured — every device joins the same shared board
 ```
 
 ### 5. Display-specific setup
