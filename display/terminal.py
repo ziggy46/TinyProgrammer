@@ -15,6 +15,7 @@ Layout (480x320):
 
 import os
 import time
+import random
 from typing import Tuple, Optional, Callable, List
 
 # Force pygame to use dummy driver (we handle display ourselves)
@@ -671,23 +672,78 @@ class Terminal:
         # Store for render methods
         self._bbs_content_y = content_y
 
+    def _bbs_render_scrolled(self, lines):
+        """Render lines with auto-scrolling inside the terminal draw area.
+
+        Each entry in lines is (text, color_key) where color_key is
+        'text', 'dim', 'accent', or 'separator'.
+        """
+        if self.mock_mode:
+            return
+        colors = self._bbs_colors()
+        lx = self._bbs_x + 8
+        content_y = self._bbs_content_y + 4
+        visible_h = self._bbs_max_y - content_y
+        visible_rows = visible_h // self.char_height
+
+        # Render first screenful
+        offset = 0
+        self._bbs_draw_lines(lines, offset, visible_rows, colors, lx, content_y)
+        self._flip(force=True)
+
+        # If everything fits, done
+        if len(lines) <= visible_rows:
+            return
+
+        # Pause on first screenful
+        time.sleep(random.uniform(2.0, 3.5))
+
+        # Scroll through remaining lines
+        while offset + visible_rows < len(lines):
+            offset += 1
+            self._bbs_clear_content()
+            self._bbs_draw_lines(lines, offset, visible_rows, colors, lx, content_y)
+            self._flip(force=True)
+            time.sleep(random.uniform(0.15, 0.35))
+
+        # Pause on last screenful
+        time.sleep(random.uniform(1.5, 3.0))
+
+    def _bbs_draw_lines(self, lines, offset, visible_rows, colors, lx, start_y):
+        """Draw a window of lines at the given offset."""
+        y = start_y
+        for line_text, color_key in lines[offset:offset + visible_rows]:
+            if color_key == "separator":
+                pygame.draw.line(self.screen, colors["border"],
+                                 (lx, y + self.char_height // 2),
+                                 (self._bbs_x + self._BBS_DRAW_W - 8,
+                                  y + self.char_height // 2))
+            else:
+                color = colors.get(color_key, colors["text"])
+                surf = self.font.render(line_text, True, color)
+                self.screen.blit(surf, (lx, y))
+            y += self.char_height
+
+    def _bbs_wrap(self, text, indent=0):
+        """Wrap text to fit terminal width, return list of strings."""
+        max_chars = self._bbs_cols - 2 - indent
+        if max_chars < 10:
+            max_chars = 10
+        result = []
+        for i in range(0, len(text), max_chars):
+            result.append((" " * indent) + text[i:i + max_chars])
+        return result if result else [""]
+
     def render_bbs_menu(self, stats, device_name):
         """Render the BBS main menu with board listing."""
         if self.mock_mode:
             return
         colors = self._bbs_colors()
         self._bbs_clear_content()
-        lx = self._bbs_x + 8
 
-        y = self._bbs_content_y + 4
-        welcome = f"Welcome, {device_name}!"
-        surf = self.font.render(welcome, True, colors["accent"])
-        self.screen.blit(surf, (lx, y))
-        y += self.char_height + 6
-
-        pygame.draw.line(self.screen, colors["border"],
-                         (lx, y), (self._bbs_x + self._BBS_DRAW_W - 8, y))
-        y += 6
+        lines = []
+        lines.append((f"Welcome, {device_name}!", "accent"))
+        lines.append(("", "separator"))
 
         board_names = {
             "code_share": "Code Share",
@@ -700,116 +756,79 @@ class Terminal:
         stats_map = {s["board"]: s["total_posts"] for s in stats}
 
         for slug, label in board_names.items():
-            if y > self._bbs_max_y - self.char_height:
-                break
             count = stats_map.get(slug, 0)
-            line = f"  [{slug[:3].upper()}]  {label:<20s} ({count} posts)"
-            surf = self.font.render(line, True, colors["text"])
-            self.screen.blit(surf, (lx, y))
-            y += self.char_height + 2
+            lines.append((f"  [{slug[:3].upper()}]  {label:<20s} ({count} posts)", "text"))
 
-        self._flip(force=True)
+        self._bbs_render_scrolled(lines)
 
     def render_bbs_feed(self, board, posts):
-        """Render a flat board feed."""
+        """Render a flat board feed with auto-scrolling."""
         if self.mock_mode:
             return
-        colors = self._bbs_colors()
         self._bbs_clear_content()
-        lx = self._bbs_x + 8
-        max_chars = self._bbs_cols - 2
 
-        y = self._bbs_content_y + 4
-        title = f"--- {board.upper()} ---"
-        surf = self.font.render(title, True, colors["accent"])
-        self.screen.blit(surf, (lx, y))
-        y += self.char_height + 6
+        lines = []
+        lines.append((f"--- {board.upper()} ---", "accent"))
+        lines.append(("", "text"))
 
         for p in posts:
-            if y > self._bbs_max_y - self.char_height * 2:
-                break
             author = p.get("author", "?")
             content = p.get("content", "")
-            author_surf = self.font.render(f"{author}:", True, colors["accent"])
-            self.screen.blit(author_surf, (lx, y))
-            y += self.char_height
-            for i in range(0, len(content), max_chars):
-                if y > self._bbs_max_y - self.char_height:
-                    break
-                chunk = content[i:i + max_chars]
-                txt_surf = self.font.render(chunk, True, colors["text"])
-                self.screen.blit(txt_surf, (lx + 8, y))
-                y += self.char_height
-            y += 4
+            lines.append((f"{author}:", "accent"))
+            for wrapped in self._bbs_wrap(content, indent=1):
+                lines.append((wrapped, "text"))
+            lines.append(("", "text"))
 
-        self._flip(force=True)
+        self._bbs_render_scrolled(lines)
 
     def render_bbs_thread_list(self, threads):
         """Render Code Share thread listing."""
         if self.mock_mode:
             return
-        colors = self._bbs_colors()
         self._bbs_clear_content()
-        lx = self._bbs_x + 8
 
-        y = self._bbs_content_y + 4
-        title_surf = self.font.render("--- CODE SHARE ---", True, colors["accent"])
-        self.screen.blit(title_surf, (lx, y))
-        y += self.char_height + 6
+        lines = []
+        lines.append(("--- CODE SHARE ---", "accent"))
+        lines.append(("", "text"))
 
         for i, t in enumerate(threads):
-            if y > self._bbs_max_y - self.char_height:
-                break
             title = t.get("title", "untitled")[:40]
             author = t.get("author", "?")
-            line = f"  {i+1:2d}. {title}  ({author})"
-            surf = self.font.render(line, True, colors["text"])
-            self.screen.blit(surf, (lx, y))
-            y += self.char_height + 2
+            lines.append((f"  {i+1:2d}. {title}  ({author})", "text"))
 
-        self._flip(force=True)
+        self._bbs_render_scrolled(lines)
 
     def render_bbs_thread_detail(self, detail):
-        """Render a thread's top post and replies."""
+        """Render a thread's top post and replies with auto-scrolling."""
         if self.mock_mode:
             return
-        colors = self._bbs_colors()
         self._bbs_clear_content()
-        lx = self._bbs_x + 8
-        max_chars = self._bbs_cols - 2
 
-        y = self._bbs_content_y + 4
+        lines = []
         post = detail.get("post", {})
         title = post.get("title", "untitled")
         author = post.get("author", "?")
 
-        surf = self.font.render(f"[{title}] by {author}", True, colors["accent"])
-        self.screen.blit(surf, (lx, y))
-        y += self.char_height + 4
+        lines.append((f"[{title}] by {author}", "accent"))
+        lines.append(("", "text"))
 
         content = post.get("content", "")
-        for line in content.split("\n"):
-            if y > self._bbs_max_y - self.char_height * 4:
-                break
-            surf = self.font.render(line[:max_chars], True, colors["text"])
-            self.screen.blit(surf, (lx, y))
-            y += self.char_height
+        max_chars = self._bbs_cols - 2
+        for code_line in content.split("\n"):
+            for wrapped in self._bbs_wrap(code_line):
+                lines.append((wrapped, "text"))
 
-        y += 4
-        pygame.draw.line(self.screen, colors["border"],
-                         (lx, y), (self._bbs_x + self._BBS_DRAW_W - 8, y))
-        y += 6
+        lines.append(("", "separator"))
 
-        for r in detail.get("replies", [])[:5]:
-            if y > self._bbs_max_y - self.char_height:
-                break
+        for r in detail.get("replies", []):
             rauthor = r.get("author", "?")
-            rcontent = r.get("content", "")[:max_chars - 10]
-            surf = self.font.render(f"{rauthor}: {rcontent}", True, colors["dim"])
-            self.screen.blit(surf, (lx + 8, y))
-            y += self.char_height + 2
+            rcontent = r.get("content", "")
+            lines.append((f"{rauthor}:", "accent"))
+            for wrapped in self._bbs_wrap(rcontent, indent=1):
+                lines.append((wrapped, "dim"))
+            lines.append(("", "text"))
 
-        self._flip(force=True)
+        self._bbs_render_scrolled(lines)
 
     def render_bbs_compose(self, context):
         """Show the multi-line compose area in the bottom of the terminal."""
