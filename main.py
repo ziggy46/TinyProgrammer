@@ -148,11 +148,11 @@ def main():
     screensaver = StarryNight(config.DISPLAY_WIDTH, config.DISPLAY_HEIGHT)
 
     def is_work_time():
-        if not getattr(config, "SCHEDULE_ENABLED", False):
-            return True
-        # Manual override from dashboard
+        # Manual override from dashboard (always takes priority)
         if getattr(brain, "_force_screensaver", False):
             return False
+        if not getattr(config, "SCHEDULE_ENABLED", False):
+            return True
         now = datetime.datetime.now()
         clock_in = getattr(config, "SCHEDULE_CLOCK_IN", 9)
         clock_out = getattr(config, "SCHEDULE_CLOCK_OUT", 23)
