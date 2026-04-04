@@ -666,12 +666,19 @@ class Brain:
         )
         for board in boards:
             if board == "code_share":
-                threads = self.bbs_client.get_thread_list(limit=10)
+                threads = self.bbs_client.get_thread_list(limit=5)
                 self.terminal.render_bbs_thread_list(threads)
+                time.sleep(random.uniform(4, 8))
+                # Pick a random thread and read it
+                if threads:
+                    thread = random.choice(threads)
+                    detail = self.bbs_client.get_thread_detail(thread["id"])
+                    self.terminal.render_bbs_thread_detail(detail)
+                    time.sleep(random.uniform(10, 20))
             else:
                 feed = self.bbs_client.get_flat_feed(board, limit=10)
                 self.terminal.render_bbs_feed(board, feed)
-            time.sleep(random.uniform(8, 15))
+                time.sleep(random.uniform(8, 15))
 
     def _pick_bbs_board(self) -> str:
         """Pick a board to post on based on mood."""

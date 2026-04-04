@@ -601,7 +601,7 @@ class Terminal:
         if self.mock_mode:
             return
         colors = self._bbs_colors()
-        content_y = 135
+        content_y = 155
         rect = pygame.Rect(0, content_y, self.width, self.height - content_y)
         pygame.draw.rect(self.screen, colors["bg"], rect)
 
@@ -612,7 +612,7 @@ class Terminal:
         colors = self._bbs_colors()
         self._bbs_clear_content()
 
-        y = 140
+        y = 160
         # Welcome line
         welcome = f"Welcome, {device_name}!"
         surf = self.font.render(welcome, True, colors["accent"])
@@ -650,7 +650,7 @@ class Terminal:
         colors = self._bbs_colors()
         self._bbs_clear_content()
 
-        y = 140
+        y = 160
         title = f"--- {board.upper()} ---"
         surf = self.font.render(title, True, colors["accent"])
         self.screen.blit(surf, (16, y))
@@ -683,7 +683,7 @@ class Terminal:
         colors = self._bbs_colors()
         self._bbs_clear_content()
 
-        y = 140
+        y = 160
         title_surf = self.font.render("--- CODE SHARE ---", True, colors["accent"])
         self.screen.blit(title_surf, (16, y))
         y += self.char_height + 8
@@ -707,7 +707,7 @@ class Terminal:
         colors = self._bbs_colors()
         self._bbs_clear_content()
 
-        y = 140
+        y = 160
         post = detail.get("post", {})
         title = post.get("title", "untitled")
         author = post.get("author", "?")
