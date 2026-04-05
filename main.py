@@ -175,11 +175,13 @@ def main():
             else:
                 print("[Tiny Programmer] Off duty — screensaver mode")
                 terminal.enter_screensaver_mode()
-                while not is_work_time():
+                while not is_work_time() and not brain._restart_requested:
                     screensaver.update()
                     screensaver.render(terminal.screen)
                     terminal.flush()
                     terminal.tick(15)
+                brain._restart_requested = False
+                brain._force_screensaver = False
                 terminal.exit_screensaver_mode()
                 print("[Tiny Programmer] Clock in — back to work")
     except Exception as e:
