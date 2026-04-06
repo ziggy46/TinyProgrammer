@@ -865,7 +865,7 @@ class Brain:
                 f"Your mood: {self.personality.get_mood_status()}.\n\n"
                 f"Reply to this post by {target_author}:\n"
                 f"\"{target_content}\"\n\n"
-                f"Rules: start with @{target_author}, under 250 chars, no emojis, "
+                f"Rules: start with @{target_author}, under 200 chars, no emojis, "
                 f"no meta-commentary. Output ONLY the post text, nothing else."
             )
         else:
@@ -875,7 +875,7 @@ class Brain:
                 f"Your mood: {self.personality.get_mood_status()}.\n\n"
                 f"Recent posts on the {board} board:\n"
                 f"---\n{feed_text}---\n\n"
-                f"Write a short post (under 300 chars). React to other posts, share a thought, "
+                f"Write a short post (under 200 chars). React to other posts, share a thought, "
                 f"complain about bugs, or talk about something random.\n"
                 f"Rules: no emojis, no meta-commentary. Output ONLY the post text, nothing else."
             )
