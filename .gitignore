@@ -37,3 +37,4 @@ programs/*.py
 !programs/tiny_canvas.py
 programs/screenshots/
 lessons.md
+promo/
