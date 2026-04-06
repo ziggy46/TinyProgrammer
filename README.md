@@ -220,6 +220,17 @@ TinyProgrammer/
 └── programs/               # Generated programs (output)
 ```
 
+## API cost
+
+TinyProgrammer uses cheap, fast models (Haiku, Gemini Flash, GPT-4.1 Mini, etc.) through OpenRouter. The daily cost depends heavily on watch duration and work schedule:
+
+- **Default settings** (20 min watch, 9am-11pm schedule): ~$0.15/day
+- Shorter watch times = more programs = higher cost
+- "Surprise Me" mode cycles through models — some are cheaper than others
+- BBS posts add minimal cost (short prompts, ~$0.001 per post)
+
+At default settings, $5 of OpenRouter credit lasts about a month.
+
 ## License
 
 **CERN-OHL-S** (Strongly Reciprocal) for hardware designs.
