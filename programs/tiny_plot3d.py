@@ -12,7 +12,6 @@ Usage:
     c = Canvas()
     p = Plot3D(c)
     p.set_range(x=(-5, 5), y=(-5, 5))
-    p.set_style("mono_dark")
     p.run(lambda x, y: math.sin(math.sqrt(x*x + y*y)))
 """
 
@@ -22,9 +21,8 @@ import math
 class Plot3D:
 
     STYLES = {
-        "mono_light": {"bg": (255, 255, 255), "fg": (0, 0, 0), "axis": (0, 0, 0)},
-        "mono_dark":  {"bg": (0, 0, 0), "fg": (51, 255, 51), "axis": (80, 80, 80)},
-        "height":     {"bg": (0, 0, 0), "fg": None, "axis": (80, 120, 80)},
+        "mono_light": {"bg": (255, 255, 255), "axis": (0, 0, 0)},
+        "mono_dark":  {"bg": (0, 0, 0), "axis": (80, 80, 80)},
     }
 
     def __init__(self, canvas):
@@ -33,7 +31,6 @@ class Plot3D:
         self.y_range = (-5.0, 5.0)
         self.steps = 15
         self.style = "mono_light"
-        self.line_color = None  # override for fg; None uses style default
         self.rotation_speed = 1.5  # degrees per frame
         self.angle = 45.0
         self.elevation = 15.0  # 0=side, 90=top-down
@@ -63,10 +60,6 @@ class Plot3D:
 
     def set_elevation(self, degrees=30):
         self.elevation = float(degrees)
-
-    def set_color(self, r, g, b):
-        """Override the wireframe line color."""
-        self.line_color = (int(r), int(g), int(b))
 
     # =========================================================================
     # Projection
