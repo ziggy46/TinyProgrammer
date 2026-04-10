@@ -35,7 +35,7 @@ class Plot3D:
         self.style = "mono_dark"
         self.rotation_speed = 1.5  # degrees per frame
         self.angle = 0.0
-        self.elevation = 30.0  # degrees
+        self.elevation = 55.0  # degrees
         self.center_x = canvas.width / 2
         self.center_y = canvas.height / 2
         # Scale is recalculated each frame based on actual ranges
@@ -108,32 +108,46 @@ class Plot3D:
         if xy_span < 0.001:
             return
 
-        # Target visual z span = 50% of xy span
+        # Target visual z span = 45% of xy span (after elevation projection)
         z_span = z_max - z_min
         sin_e = math.sin(math.radians(self.elevation))
+        cos_e = math.cos(math.radians(self.elevation))
         if sin_e < 0.01:
             sin_e = 0.01
         if z_span < 0.001:
             self.z_scale = 1.0
-            z_visual = 0
+            z_span_scaled = 0
         else:
-            # z_scale such that z_span * z_scale * sin_e = xy_span * 0.5
-            self.z_scale = (xy_span * 0.5) / (z_span * sin_e)
-            z_visual = xy_span * 0.5  # in world units, for fit calc
+            # z_scale such that z_span * z_scale * sin_e = xy_span * 0.45
+            self.z_scale = (xy_span * 0.45) / (z_span * sin_e)
+            z_span_scaled = z_span * self.z_scale
 
-        # When rotated 45°, a square's diagonal projects to sqrt(2)/2 * span
-        # on each axis, so total span is sqrt(2) * original span.
-        # Worst case horizontal: xy_span * sqrt(2)/2 * 2 = xy_span * 1.414
-        cos_e = math.cos(math.radians(self.elevation))
-        # Horizontal worst case: diagonal of xy square
+        # Worst case extent is at angle=45 where xy rotates to diagonal
+        # (sqrt(2) * span). Size for this to avoid clipping during rotation.
         total_horiz = xy_span * 1.414
-        # Vertical worst case: diagonal of xy square * cos_e + z range
-        total_vert = xy_span * 1.414 * cos_e + z_visual
+        total_vert = xy_span * 1.414 * cos_e + z_span_scaled * sin_e
 
-        # Fit with margin
-        scale_horiz = (self.c.width * 0.85) / total_horiz
-        scale_vert = (self.c.height * 0.85) / total_vert
+        scale_horiz = (self.c.width * 0.92) / total_horiz
+        scale_vert = (self.c.height * 0.88) / total_vert
         self.scale = min(scale_horiz, scale_vert)
+
+        # Recenter by projecting the box at angle=45 (worst case extent)
+        # and shifting center_y so box center aligns with canvas center.
+        self.center_x = self.c.width / 2
+        self.center_y = self.c.height / 2
+        saved_angle = self.angle
+        self.angle = 45
+        x0, x1 = self.x_range
+        y0, y1 = self.y_range
+        ys_vals = []
+        for x in (x0, x1):
+            for y in (y0, y1):
+                for z in (z_min, z_max):
+                    _, sy = self.project(x, y, z)
+                    ys_vals.append(sy)
+        self.angle = saved_angle
+        box_mid = (min(ys_vals) + max(ys_vals)) / 2
+        self.center_y += (self.c.height / 2 - box_mid)
 
     # =========================================================================
     # Drawing
