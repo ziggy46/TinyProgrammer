@@ -88,8 +88,8 @@ class Plot3D:
         ty = ry * sin_e + rz * cos_e
         tz = ry * cos_e - rz * sin_e
 
-        # Simple perspective: further points shrink slightly
-        camera_dist = 15.0
+        # Near-orthographic projection (large camera distance = subtle depth cue)
+        camera_dist = 50.0
         persp = camera_dist / (camera_dist + tz + 0.001)
 
         sx = self.center_x + rx * self.scale * persp
