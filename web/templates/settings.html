@@ -257,6 +257,7 @@
     var indicatorEl = statusEl.querySelector('.ollama-indicator');
     var textEl = statusEl.querySelector('.ollama-text');
     var selectEl = document.getElementById('llm_model');
+    var savedModel = '{{ current_model }}';
 
     statusEl.style.display = 'flex';
     indicatorEl.className = 'ollama-indicator ollama-checking';
@@ -276,7 +277,7 @@
                     var opt = document.createElement('option');
                     opt.value = 'ollama/' + name;
                     opt.textContent = name + ' (Local)';
-                    if (opt.value === selectEl.value) {
+                    if (opt.value === savedModel) {
                         opt.selected = true;
                     }
                     optgroup.appendChild(opt);
