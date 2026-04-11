@@ -257,7 +257,7 @@
     var indicatorEl = statusEl.querySelector('.ollama-indicator');
     var textEl = statusEl.querySelector('.ollama-text');
     var selectEl = document.getElementById('llm_model');
-    var savedModel = '{{ current_model }}';
+    var savedModel = {{ current_model | tojson }};
 
     statusEl.style.display = 'flex';
     indicatorEl.className = 'ollama-indicator ollama-checking';
@@ -273,16 +273,26 @@
                 // Add Ollama models to the dropdown
                 var optgroup = document.createElement('optgroup');
                 optgroup.label = 'Ollama (Local)';
+                var matchedSaved = false;
                 data.models.forEach(function(name) {
                     var opt = document.createElement('option');
                     opt.value = 'ollama/' + name;
                     opt.textContent = name + ' (Local)';
                     if (opt.value === savedModel) {
                         opt.selected = true;
+                        matchedSaved = true;
                     }
                     optgroup.appendChild(opt);
                 });
                 selectEl.appendChild(optgroup);
+                // Clear server-selected option if we matched the saved Ollama model
+                if (matchedSaved) {
+                    Array.prototype.forEach.call(selectEl.options, function(o) {
+                        if (!o.value.startsWith('ollama/') && o.selected) {
+                            o.selected = false;
+                        }
+                    });
+                }
             } else if (data.available) {
                 indicatorEl.className = 'ollama-indicator ollama-on';
                 textEl.textContent = 'Ollama detected \u2014 no models pulled yet';

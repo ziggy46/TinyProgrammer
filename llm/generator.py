@@ -58,9 +58,7 @@ def detect_ollama_models(endpoint=None):
             data = resp.json()
             models = [m["name"] for m in data.get("models", [])]
             return (True, models)
-    except (requests.exceptions.ConnectionError,
-            requests.exceptions.Timeout,
-            Exception):
+    except (requests.RequestException, ValueError):
         pass
     return (False, [])
 
@@ -243,6 +241,7 @@ class LLMGenerator:
             "model": model,
             "prompt": prompt,
             "stream": True,
+            "think": False,
             "options": {
                 "num_predict": max_tokens,
                 "temperature": temperature,
@@ -255,7 +254,7 @@ class LLMGenerator:
         print(f"[LLM] Sending request to Ollama ({model})")
 
         try:
-            with requests.post(url, json=data, stream=True, timeout=(10, 30)) as response:
+            with requests.post(url, json=data, stream=True, timeout=(10, 120)) as response:
                 if response.status_code != 200:
                     raise Exception(f"Ollama error! (err: {response.status_code})")
 
