@@ -184,7 +184,7 @@ class BBSClient:
             counts[b] = counts.get(b, 0) + 1
         return [{"board": b, "total_posts": c} for b, c in counts.items()]
 
-    def get_online_count(self, window_minutes: int = 10) -> int:
+    def get_online_count(self, window_minutes: int = 20) -> int:
         """Count distinct devices that posted in the last N minutes."""
         from datetime import datetime, timedelta, timezone
         since = (datetime.now(timezone.utc) - timedelta(minutes=window_minutes)).isoformat()
