@@ -47,11 +47,34 @@
         </div>
     </div>
 
-    <div class="status-card">
+    <div class="status-card" style="position: relative;">
         <h3>Current Program</h3>
+        <span class="like-heart" id="like-btn" onclick="likeProgram()" title="Like this program">&#9825;</span>
         <div class="status-value">
             {{ status.current_program_type or 'None' }}
         </div>
+    </div>
+
+    <div class="status-card">
+        <h3>Prompt Mode</h3>
+        {% if status.is_variation %}
+        <div class="status-value">Variation</div>
+        {% elif status.creative_style %}
+        <div class="status-value" style="font-size: 0.9rem; line-height: 1.4;">
+            <div><strong>{{ status.creative_style }}</strong></div>
+            <div>{{ status.creative_palette }}</div>
+            {% if status.creative_seed %}
+            <div style="font-style: italic; opacity: 0.7;">{{ status.creative_seed }}</div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="status-value">Core</div>
+        {% endif %}
+    </div>
+
+    <div class="status-card">
+        <h3>Liked Programs</h3>
+        <div class="status-value">{{ status.liked_count or 0 }}</div>
     </div>
 </div>
 
@@ -120,6 +143,18 @@
 </div>
 
 <script>
+function likeProgram() {
+    var btn = document.getElementById('like-btn');
+    fetch('/api/like', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                btn.innerHTML = '&#9829;';
+                btn.classList.add('liked');
+            }
+        })
+        .catch(function() {});
+}
 function restartProgram() {
     fetch('/api/restart', { method: 'POST' })
         .then(response => response.json())

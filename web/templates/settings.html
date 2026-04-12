@@ -116,10 +116,18 @@
         <p class="hint">Enable/disable program types and set their weights (higher = more likely).</p>
 
         <div class="program-types-grid">
-            {% set default_types = ['bouncing_ball', 'pattern', 'animation', 'game_of_life',
-                                    'cellular_automata', 'l_system', 'spiral', 'random_walker',
-                                    'starfield', 'rain', 'generative_glyphs', 'pong',
-                                    'wireframe_plot'] %}
+            {% set default_types = [
+                'bouncing_ball', 'pong', 'orbit_system', 'pendulum', 'spring_chain',
+                'particle_fountain', 'gravity_well', 'flock',
+                'game_of_life', 'cellular_automata', 'wire_world', 'ant_trail',
+                'langton_ant', 'voronoi_grow',
+                'pattern', 'generative_glyphs', 'l_system', 'fractal_tree',
+                'tile_weaver', 'mandala', 'plasma',
+                'rain', 'starfield', 'fire', 'lightning', 'snow', 'waves', 'aurora',
+                'spiral', 'random_walker', 'animation', 'brush_strokes',
+                'geometric_drift', 'color_fields', 'warp_grid',
+                'wireframe_plot',
+            ] %}
             {% set current_types = config.PROGRAM_TYPES or [] %}
             {% set current_dict = dict(current_types) %}
 

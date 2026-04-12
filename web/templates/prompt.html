@@ -40,10 +40,18 @@
         <h2>Program Descriptions</h2>
         <p class="hint">Each description completes the sentence: "Write a short Python program that..."</p>
 
-        {% set program_types = ['bouncing_ball', 'pattern', 'animation', 'game_of_life',
-                                'cellular_automata', 'l_system', 'spiral', 'random_walker',
-                                'starfield', 'rain', 'generative_glyphs', 'pong',
-                                'wireframe_plot'] %}
+        {% set program_types = [
+            'bouncing_ball', 'pong', 'orbit_system', 'pendulum', 'spring_chain',
+            'particle_fountain', 'gravity_well', 'flock',
+            'game_of_life', 'cellular_automata', 'wire_world', 'ant_trail',
+            'langton_ant', 'voronoi_grow',
+            'pattern', 'generative_glyphs', 'l_system', 'fractal_tree',
+            'tile_weaver', 'mandala', 'plasma',
+            'rain', 'starfield', 'fire', 'lightning', 'snow', 'waves', 'aurora',
+            'spiral', 'random_walker', 'animation', 'brush_strokes',
+            'geometric_drift', 'color_fields', 'warp_grid',
+            'wireframe_plot',
+        ] %}
 
         {% for ptype in program_types %}
         <div class="form-group">

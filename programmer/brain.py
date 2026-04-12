@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from display.terminal import Terminal
 from llm.generator import LLMGenerator
 from programmer.personality import Personality
+from programmer import creativity
+from programmer.liked_store import LikedStore
 from archive.repository import Repository
 from archive.learning import LearningSystem
 import config
@@ -87,7 +89,9 @@ class Brain:
         self._restart_requested = False
         self._bbs_breaks_taken = 0
         self._last_lurk_time = 0
+        self._current_creative = None  # last picked creativity dict
         self._force_screensaver = False
+        self.liked_store = LikedStore()
 
     def request_restart(self):
         """Request a restart - skip to next program cycle."""
@@ -123,6 +127,13 @@ class Brain:
             "system_time": now.strftime("%H:%M"),
             "force_screensaver": self._force_screensaver,
             "stream_enabled": getattr(config, "WEB_STREAM_ENABLED", False),
+            # Creative dimensions for the current cycle
+            "creative_style": (self._current_creative or {}).get("style"),
+            "creative_palette": (self._current_creative or {}).get("palette"),
+            "creative_seed": (self._current_creative or {}).get("inspiration_seed"),
+            # Like system
+            "is_variation": getattr(self, "_current_variation", None) is not None,
+            "liked_count": self.liked_store.count(),
         }
         return status
 
@@ -215,24 +226,65 @@ class Brain:
 
         self.fix_attempts = 0
 
+        # Refresh online device count
+        if self.bbs_client:
+            try:
+                self.terminal._online_count = self.bbs_client.get_online_count()
+            except Exception:
+                pass
+
         # Select model for this new program (picks random if in surprise mode)
         self.llm.select_for_new_program()
         self.terminal.set_model_name(self.llm.get_short_name())
 
-        # Decide what to write
-        program_type = self._choose_program_type()
-        
+        # Prepare mood and creative dimensions for this cycle
+        mood = self.personality.get_mood_status()
+
+        # Three-way split: variation > core > creative
+        variation_prob = getattr(config, "VARIATION_PROBABILITY", 0.15)
+        core_prob = getattr(config, "CORE_PROMPT_PROBABILITY", 0.5)
+        roll = random.random()
+        liked = self.liked_store.pick() if roll < variation_prob and self.liked_store.count() > 0 else None
+
+        if liked:
+            # Variation mode: remix a liked program
+            program_type = liked["type"]
+            self._current_creative = None
+            self._current_variation = liked
+            print(f"[Brain] Variation: remixing liked {program_type}")
+        elif roll < variation_prob + core_prob:
+            # Core mode: pick from core list, no creative dimensions
+            core_programs = getattr(config, "CORE_PROGRAMS", [])
+            last = getattr(self, "_last_program_type", None)
+            choices = [p for p in core_programs if p != last] or core_programs
+            program_type = random.choice(choices)
+            self._last_program_type = program_type
+            self._current_creative = None
+            self._current_variation = None
+            print(f"[Brain] Core: {program_type}")
+        else:
+            # Creative mode: full creativity system
+            creative = creativity.pick_creative_dimensions(mood)
+            self._current_creative = creative
+            self._current_variation = None
+            program_type = self._choose_program_type(mood)
+            seed_str = creative.get("inspiration_seed") or "none"
+            print(f"[Brain] Creative: style={creative['style']}, palette={creative['palette']}, seed={seed_str}")
+
         # Thinking comments
         comment = self.personality.get_thinking_comment()
         self.terminal.type_string(f"\n{comment}\n")
-        
+
         # Simulate thinking time
         time.sleep(random.uniform(2.0, 4.0))
-        
-        # Prepare for writing
-        mood = self.personality.get_mood_status()
+
+        # Prepare prompt
         lessons = self.learning.get_recent_lessons()
-        self._current_prompt = self.llm.build_prompt(program_type, mood, lessons)
+        if liked:
+            self._current_prompt = self.llm.build_variation_prompt(liked["code"], program_type)
+        else:
+            self._current_prompt = self.llm.build_prompt(program_type, mood, lessons,
+                                                         self._current_creative)
         
         # Initialize current program container
         self.current_program = Program(
@@ -244,17 +296,14 @@ class Brain:
         
         self._transition(State.WRITE)
     
-    def _choose_program_type(self) -> str:
-        """Choose what type of program to write, avoiding immediate repeats."""
-        if not config.PROGRAM_TYPES:
-            return "pattern"
-        types, weights = zip(*config.PROGRAM_TYPES)
-        # Filter out last type to avoid back-to-back repeats
-        if hasattr(self, '_last_program_type') and self._last_program_type in types:
-            filtered = [(t, w) for t, w in zip(types, weights) if t != self._last_program_type]
-            if filtered:
-                types, weights = zip(*filtered)
-        choice = random.choices(types, weights=weights)[0]
+    def _choose_program_type(self, mood: str = None) -> str:
+        """Choose what type of program to write, biased by mood, avoiding repeats."""
+        last = getattr(self, "_last_program_type", None)
+        choice = creativity.pick_program_type(
+            mood or self.personality.get_mood_status(),
+            list(config.PROGRAM_TYPES),
+            last_type=last,
+        )
         self._last_program_type = choice
         return choice
     
@@ -680,6 +729,14 @@ class Brain:
         """BBS break: device visits the bulletin board."""
         self._bbs_breaks_taken += 1
         try:
+            # Fetch notification before entering BBS mode so it's
+            # available when the banner is first rendered.
+            try:
+                notif = self.bbs_client.get_notification()
+                self.terminal._bbs_set_notification(notif)
+            except Exception:
+                pass
+
             self.terminal.enter_bbs_mode()
             self.terminal.set_status("BBS BREAK", self.personality.get_mood_status())
 

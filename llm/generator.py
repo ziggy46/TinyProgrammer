@@ -286,13 +286,25 @@ class LLMGenerator:
             base += "from tiny_plot3d import Plot3D\n\np = Plot3D(c)\n"
         return base
 
-    def build_prompt(self, program_type: str, mood: str, lessons: str = "") -> str:
+    def build_prompt(self, program_type: str, mood: str, lessons: str = "", creative: dict = None) -> str:
         """
         Build a prompt for generating a specific type of program.
+
+        Args:
+            program_type: type slug (e.g. "bouncing_ball")
+            mood: current mood name
+            lessons: recent lessons as a string (may be empty)
+            creative: dict from creativity.pick_creative_dimensions() with
+                      style, palette, inspiration_seed, directive keys.
+                      If None, falls back to the plain prompt.
         """
         # Special case: wireframe_plot uses the Plot3D helper
         if program_type == "wireframe_plot":
             return self._build_wireframe_prompt(lessons)
+
+        # Local Ollama models get a stripped-down prompt (weak instruction following)
+        if self.model_name.startswith("ollama/"):
+            return self._build_simple_prompt(program_type, creative)
 
         description = PROGRAM_DESCRIPTIONS.get(program_type, "does something interesting")
 
@@ -305,16 +317,33 @@ class LLMGenerator:
         canvas_w = config.CANVAS_DRAW_W
         canvas_h = config.CANVAS_DRAW_H
 
+        # Creative direction from dimensions dict
+        creative_block = ""
+        if creative:
+            style = creative.get("style", "")
+            palette = creative.get("palette", "")
+            seed = creative.get("inspiration_seed")
+            directive = creative.get("directive", "")
+
+            creative_block = f"You're writing a short Python program in the style of {style}"
+            if seed:
+                creative_block += f", inspired by {seed}"
+            creative_block += f".\nYour mood right now is {mood} — {directive}.\n\n"
+            creative_block += f"Focus on: {description}\n"
+            creative_block += f"Use a {palette} color palette.\n\n"
+        else:
+            creative_block = f"Write a short Python program that {description}.\n\n"
+
         prompt = (
             f"{lessons_text}"
-            f"Write a short Python program that {description}.\n\n"
+            f"{creative_block}"
             "RULES:\n"
             "- 20-50 lines of code\n"
             "- NO imports (already done)\n"
             "- Start with variables, then while True loop\n"
             f"- Canvas: {canvas_w}x{canvas_h} pixels\n"
+            "- RGB values are integers 0-255 (NOT floats 0.0-1.0)\n"
             "- ALWAYS call c.sleep(0.033) at end of loop\n"
-            "- Use creative background colors with c.clear(), not just black\n"
             "- Use simple shapes, avoid too many draw calls per frame\n"
             "- Add short casual comments like a human thinking out loud\n"
             "  e.g. '# hmm let's try a spiral', '# this should bounce nicely'\n\n"
@@ -331,6 +360,33 @@ class LLMGenerator:
             "Output ONLY Python code. No markdown, no explanation.\n"
         )
 
+        return prompt
+
+    def _build_simple_prompt(self, program_type: str, creative: dict = None) -> str:
+        """Stripped-down prompt for local Ollama models (weak instruction following).
+
+        Only includes: program type, palette, rules, API. No style, no seed,
+        no mood directive, no creative direction block.
+        """
+        description = PROGRAM_DESCRIPTIONS.get(program_type, "does something interesting")
+        canvas_w = config.CANVAS_DRAW_W
+        canvas_h = config.CANVAS_DRAW_H
+
+        palette = ""
+        if creative and creative.get("palette"):
+            palette = f"Use a {creative['palette']} color palette.\n"
+
+        prompt = (
+            f"Write a short Python program that {description}.\n"
+            f"{palette}\n"
+            "RULES:\n"
+            "- 20-50 lines of code, no imports\n"
+            "- while True loop, call c.sleep(0.033) each frame\n"
+            f"- Canvas: {canvas_w}x{canvas_h} pixels\n\n"
+            "Methods on 'c': clear, pixel, line, rect, fill_rect, circle, fill_circle, sleep\n"
+            "All take r,g,b after coordinates.\n\n"
+            "Output ONLY Python code.\n"
+        )
         return prompt
 
     def _build_wireframe_prompt(self, lessons: str = "") -> str:
@@ -361,6 +417,42 @@ class LLMGenerator:
             "  def surface(x, y):\n"
             "      return math.sin(math.sqrt(x*x + y*y))\n"
             "  p.run(surface)\n\n"
+            "Output ONLY Python code. No markdown, no explanation.\n"
+        )
+        return prompt
+
+    def build_variation_prompt(self, code: str, program_type: str) -> str:
+        """Build a prompt asking the LLM to create a small variation of a liked program."""
+        canvas_w = config.CANVAS_DRAW_W
+        canvas_h = config.CANVAS_DRAW_H
+
+        prompt = (
+            "Here's a Python program the user enjoyed:\n\n"
+            f"{code}\n\n"
+            "Write a variation of this program with minor changes. Try one or two of:\n"
+            "- Different color palette\n"
+            "- Different sizes or proportions\n"
+            "- Different speed or direction\n"
+            "- Slightly different shapes or patterns\n\n"
+            "Keep the core behavior and structure the same.\n\n"
+            "RULES:\n"
+            "- 20-50 lines of code\n"
+            "- NO imports (already done)\n"
+            "- Start with variables, then while True loop\n"
+            f"- Canvas: {canvas_w}x{canvas_h} pixels\n"
+            "- RGB values are integers 0-255 (NOT floats 0.0-1.0)\n"
+            "- ALWAYS call c.sleep(0.033) at end of loop\n"
+            "- Use simple shapes, avoid too many draw calls per frame\n\n"
+            "ONLY these methods exist on 'c':\n"
+            "  c.clear(r,g,b)\n"
+            "  c.pixel(x,y,r,g,b)\n"
+            "  c.line(x1,y1,x2,y2,r,g,b)\n"
+            "  c.rect(x,y,w,h,r,g,b)\n"
+            "  c.fill_rect(x,y,w,h,r,g,b)\n"
+            "  c.circle(x,y,radius,r,g,b)\n"
+            "  c.fill_circle(x,y,radius,r,g,b)\n"
+            "  c.sleep(seconds)\n"
+            "Do NOT use any other methods.\n\n"
             "Output ONLY Python code. No markdown, no explanation.\n"
         )
         return prompt
@@ -402,17 +494,46 @@ class LLMGenerator:
 
 # Program type descriptions for prompts
 PROGRAM_DESCRIPTIONS = {
+    # Motion & Physics
     "bouncing_ball": "animates a ball bouncing around the canvas",
-    "pattern": "generates a mesmerizing geometric pattern with shapes and colors",
-    "animation": "creates a simple looping animation with moving shapes",
+    "pong": "simulates a game of pong with a ball bouncing between two paddles that move on their own",
+    "orbit_system": "simulates planets orbiting a central body with simple gravity",
+    "pendulum": "animates one or more swinging pendulums with damping",
+    "spring_chain": "simulates a chain of masses connected by springs, wobbling realistically",
+    "particle_fountain": "emits particles from a point with gravity and fade-out trails",
+    "gravity_well": "shows particles attracted to a moving gravitational well",
+    "flock": "simulates a flock of dots moving together with simple boids-style rules",
+    # Cellular & Grid
     "game_of_life": "implements Conway's Game of Life using small filled rectangles as cells",
     "cellular_automata": "implements a 1D cellular automaton (like Rule 30 or Rule 110) drawing rows of cells",
+    "wire_world": "implements Wireworld, a cellular automaton modeling electronic circuits",
+    "ant_trail": "simulates ants leaving pheromone trails that other ants follow",
+    "langton_ant": "implements Langton's Ant on a grid, leaving a path of flipped cells",
+    "voronoi_grow": "grows a Voronoi diagram from seed points, cells expanding outward",
+    # Generative & Procedural
+    "pattern": "generates a mesmerizing geometric pattern with shapes and colors",
+    "generative_glyphs": "generates abstract procedural glyphs or symbols on a grid using basic shapes",
     "l_system": "draws an L-system fractal pattern like a tree, snowflake, or fern using lines",
+    "fractal_tree": "draws a recursive fractal tree with branches swaying slightly",
+    "tile_weaver": "weaves an interlocking tile pattern like a generative textile",
+    "mandala": "draws a symmetric mandala with rotational symmetry and layered motifs",
+    "plasma": "renders a flowing plasma-like field using trigonometric color functions",
+    # Natural Phenomena
+    "rain": "simulates falling raindrops using lines",
+    "starfield": "simulates stars flying toward the viewer",
+    "fire": "simulates rising flames with flickering colors",
+    "lightning": "draws occasional forked lightning bolts across the canvas",
+    "snow": "animates snowflakes drifting down with subtle horizontal sway",
+    "waves": "simulates ocean waves rolling across the canvas",
+    "aurora": "animates aurora-like bands of color rippling across the sky",
+    # Abstract & Artistic
     "spiral": "draws an expanding or rotating spiral pattern",
     "random_walker": "animates a dot randomly walking around the canvas leaving a trail",
-    "starfield": "simulates stars flying toward the viewer",
-    "rain": "simulates falling raindrops using lines",
-    "generative_glyphs": "generates abstract procedural glyphs or symbols on a grid using basic shapes",
-    "pong": "simulates a game of pong with a ball bouncing between two paddles that move on their own",
+    "animation": "creates a simple looping animation with moving shapes",
+    "brush_strokes": "simulates expressive brush strokes appearing one by one",
+    "geometric_drift": "shows geometric shapes slowly drifting and rearranging",
+    "color_fields": "renders evolving abstract color fields like a Rothko painting",
+    "warp_grid": "distorts a grid with smooth wave-based warping over time",
+    # Math
     "wireframe_plot": "renders an animated 3D wireframe plot of a mathematical surface",
 }
