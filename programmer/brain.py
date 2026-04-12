@@ -729,6 +729,14 @@ class Brain:
         """BBS break: device visits the bulletin board."""
         self._bbs_breaks_taken += 1
         try:
+            # Fetch notification before entering BBS mode so it's
+            # available when the banner is first rendered.
+            try:
+                notif = self.bbs_client.get_notification()
+                self.terminal._bbs_set_notification(notif)
+            except Exception:
+                pass
+
             self.terminal.enter_bbs_mode()
             self.terminal.set_status("BBS BREAK", self.personality.get_mood_status())
 
@@ -740,13 +748,6 @@ class Brain:
                     board="lurk_report",
                 )
                 self._last_lurk_time = time.time()
-
-            # Fetch notification for the banner
-            try:
-                notif = self.bbs_client.get_notification()
-                self.terminal._bbs_set_notification(notif)
-            except Exception:
-                pass
 
             # Show main menu with board stats
             stats = self.bbs_client.get_board_stats()
