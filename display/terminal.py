@@ -723,13 +723,14 @@ class Terminal:
             self.screen.blit(surf, (self._bbs_x + 8, y))
             y += self.char_height
 
-        # Notification text (orange) on the line after the banner
+        # Notification text (orange) on the same line as v0.1
         notif = getattr(self, "_bbs_notification", None)
         if notif:
+            last_line_y = y - self.char_height
+            last_surf = self.font.render(self.BBS_BANNER[-1], True, colors["accent"])
+            notif_x = self._bbs_x + 8 + last_surf.get_width() + self.char_width * 2
             notif_surf = self.font.render(notif, True, (255, 165, 0))
-            notif_x = self._bbs_x + 8
-            self.screen.blit(notif_surf, (notif_x, y))
-            y += self.char_height
+            self.screen.blit(notif_surf, (notif_x, last_line_y))
 
     def _bbs_set_notification(self, text):
         """Set the notification text displayed after the banner."""
@@ -740,9 +741,8 @@ class Terminal:
         if self.mock_mode:
             return
         colors = self._bbs_colors()
-        # Banner takes ~6 lines + optional notification line + padding
-        extra = self.char_height if getattr(self, "_bbs_notification", None) else 0
-        content_y = self._bbs_y + (len(self.BBS_BANNER) * self.char_height) + extra + 12
+        # Banner takes ~6 lines + padding
+        content_y = self._bbs_y + (len(self.BBS_BANNER) * self.char_height) + 12
         content_h = self._bbs_max_y - content_y
         rect = pygame.Rect(self._bbs_x, content_y, self._BBS_DRAW_W, content_h)
         pygame.draw.rect(self.screen, colors["bg"], rect)
