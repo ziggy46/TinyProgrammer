@@ -475,7 +475,7 @@ class LLMGenerator:
         )
         return prompt
 
-    def build_reflection_prompt(self, code: str, result: str) -> str:
+    def build_reflection_prompt(self, result: str) -> str:
         """Build a prompt to learn from code execution."""
         # Get canvas dimensions from config
         canvas_w = config.CANVAS_DRAW_W

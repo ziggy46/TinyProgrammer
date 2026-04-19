@@ -663,7 +663,7 @@ class Brain:
         else:
             result = f"Failed. Error: {self.current_program.error_message}"
             
-        prompt = self.llm.build_reflection_prompt(self.current_program.code, result)
+        prompt = self.llm.build_reflection_prompt(result)
         
         # Stream reflection
         lesson = ""
