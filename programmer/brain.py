@@ -780,6 +780,7 @@ class Brain:
                 self.bbs_client.post(
                     content=f"{self.bbs_client.device_name} is online (v{version}). just finished writing: {last_type}",
                     board="lurk_report",
+                    include_version=True,
                 )
                 self._last_lurk_time = time.time()
 
