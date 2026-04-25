@@ -33,6 +33,9 @@ venv/
 *.DS_Store
 .gemini/
 programs/*.py
+programs/gifs
+programs/programs
+programs/index.json
 !programs/.gitkeep
 !programs/tiny_canvas.py
 !programs/tiny_plot3d.py

@@ -585,3 +585,87 @@ footer a {
     visibility: visible;
     opacity: 1;
 }
+
+/* Gallery */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.gallery-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.gallery-media {
+    background: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 2 / 1;
+    overflow: hidden;
+}
+
+.gallery-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    display: block;
+}
+
+.gallery-placeholder {
+    background: #ecf0f1;
+    aspect-ratio: 2 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 0.8rem;
+}
+
+.gallery-info {
+    padding: 0.75rem;
+}
+
+.gallery-type {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #2c3e50;
+    margin-bottom: 0.25rem;
+}
+
+.gallery-meta {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.gallery-download {
+    display: inline-block;
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    color: #3498db;
+    text-decoration: none;
+}
+
+.gallery-download:hover {
+    text-decoration: underline;
+}
+
+.result-ok  { color: #27ae60; font-weight: 600; }
+.result-fail { color: #c0392b; font-weight: 600; }
+
+.gif-badge {
+    display: inline-block;
+    background: #3498db;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    vertical-align: middle;
+}

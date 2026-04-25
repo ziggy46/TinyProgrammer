@@ -9,7 +9,7 @@ import os
 import re
 import time
 import threading
-from flask import Flask, render_template, request, redirect, url_for, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, jsonify, Response, send_file
 
 from .config_manager import ConfigManager
 
@@ -123,6 +123,30 @@ def create_app():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    @app.route('/gallery')
+    def gallery():
+        """Gallery: Show archived programs that have a recorded GIF."""
+        programs = []
+        if _brain and hasattr(_brain, 'archive'):
+            programs = _brain.archive.list_gifs()
+        return render_template('gallery.html', programs=programs)
+
+    @app.route('/gifs/<program_id>.gif')
+    def serve_gif(program_id):
+        """Serve a recorded GIF by program ID."""
+        import config as _config
+        gif_path = os.path.join(_config.ARCHIVE_PATH, "gifs", f"{program_id}.gif")
+        if not os.path.exists(gif_path):
+            return "GIF not found", 404
+        return send_file(gif_path, mimetype="image/gif")
+
+    @app.route('/api/gifs')
+    def api_gifs():
+        """JSON list of programs that have a recorded GIF."""
+        if not _brain or not hasattr(_brain, 'archive'):
+            return jsonify([])
+        return jsonify(_brain.archive.list_gifs())
+
     @app.route('/stream')
     def video_stream():
         """MJPEG stream of the live display surface (Docker/desktop only)."""
@@ -196,6 +220,11 @@ def create_app():
             updates['SCHEDULE_ENABLED'] = 'schedule_enabled' in request.form
             updates['SCHEDULE_CLOCK_IN'] = int(request.form.get('schedule_clock_in', 9))
             updates['SCHEDULE_CLOCK_OUT'] = int(request.form.get('schedule_clock_out', 23))
+
+            # GIF recording settings
+            updates['GIF_RECORDING_ENABLED'] = 'gif_recording_enabled' in request.form
+            updates['GIF_FPS'] = max(1, min(30, int(request.form.get('gif_fps', 10))))
+            updates['GIF_MAX_DURATION'] = max(5, min(120, int(request.form.get('gif_max_duration', 30))))
 
             # Apply color scheme immediately to framebuffer
             try:

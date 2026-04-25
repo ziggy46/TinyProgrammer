@@ -28,6 +28,7 @@ class ProgramMetadata:
     thought_process: str       # The thinking comments
     error_message: Optional[str] = None
     screenshot_path: Optional[str] = None
+    gif_path: Optional[str] = None
     synced_to_github: bool = False
 
 
@@ -66,6 +67,7 @@ class Repository:
         os.makedirs(self.local_path, exist_ok=True)
         os.makedirs(os.path.join(self.local_path, "programs"), exist_ok=True)
         os.makedirs(os.path.join(self.local_path, "screenshots"), exist_ok=True)
+        os.makedirs(os.path.join(self.local_path, "gifs"), exist_ok=True)
     
     def _load_index(self):
         """Load existing index from disk."""
@@ -143,17 +145,57 @@ class Repository:
     def save_screenshot(self, program_id: str, image_data: bytes) -> str:
         """
         Save a screenshot of a running program.
-        
+
         Args:
             program_id: ID of the program
             image_data: PNG image bytes
-            
+
         Returns:
             Path to saved screenshot
         """
         # TODO: Save screenshot
         # TODO: Update metadata with screenshot path
         pass
+
+    def save_gif(self, program_id: str, gif_bytes: bytes) -> Optional[str]:
+        """Save an animated GIF and link it to the program metadata.
+
+        Args:
+            program_id: ID returned by save()
+            gif_bytes: Raw GIF file bytes
+
+        Returns:
+            Absolute path to the saved GIF, or None on failure.
+        """
+        gif_filename = f"{program_id}.gif"
+        gif_path = os.path.join(self.local_path, "gifs", gif_filename)
+        try:
+            with open(gif_path, "wb") as f:
+                f.write(gif_bytes)
+            for m in self.index:
+                if m.id == program_id:
+                    m.gif_path = gif_path
+                    break
+            self._save_index()
+            print(f"[Archive] Saved GIF: {gif_filename} ({len(gif_bytes):,} bytes)")
+            return gif_path
+        except Exception as e:
+            print(f"[Archive] Error saving GIF: {e}")
+            return None
+
+    def list_gifs(self) -> List[Dict]:
+        """Return metadata for all programs that have a GIF."""
+        return [
+            {
+                "id": m.id,
+                "program_type": m.program_type,
+                "created_at": m.created_at,
+                "success": m.success,
+                "gif_path": m.gif_path,
+            }
+            for m in reversed(self.index)
+            if m.gif_path and os.path.exists(m.gif_path)
+        ]
     
     def get_stats(self) -> Dict:
         """Get statistics about the archive."""

@@ -267,6 +267,15 @@ CUSTOM_PROGRAM_TYPES = {}
 MAX_PROGRAM_LINES = 50
 
 # =============================================================================
+# GIF RECORDING
+# =============================================================================
+
+# Record an animated GIF of the canvas during each WATCH state
+GIF_RECORDING_ENABLED = False
+GIF_FPS = 10               # Frames per second (1-30)
+GIF_MAX_DURATION = 30      # Max seconds to record (keeps file sizes sane)
+
+# =============================================================================
 # WEB INTERFACE
 # =============================================================================
 

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Gallery - TinyProgrammer{% endblock %}
+
+{% block content %}
+<h1>Gallery</h1>
+
+{% if programs %}
+<p class="hint">{{ programs|length }} recording{{ 's' if programs|length != 1 else '' }}</p>
+
+<div class="gallery-grid">
+    {% for prog in programs %}
+    <div class="gallery-card">
+        <div class="gallery-media">
+            <img src="/gifs/{{ prog.id }}.gif" alt="{{ prog.program_type }}" loading="lazy">
+        </div>
+        <div class="gallery-info">
+            <div class="gallery-type">{{ prog.program_type|replace('_', ' ')|title }}</div>
+            <div class="gallery-meta">{{ prog.created_at[:16]|replace('T', ' ') }}</div>
+            <a class="gallery-download" href="/gifs/{{ prog.id }}.gif" download="{{ prog.program_type }}_{{ prog.id }}.gif">download gif</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p>No GIFs recorded yet. Configure <strong>GIF Recording</strong> in <a href="{{ url_for('settings') }}">Settings</a>.</p>
+{% endif %}
+{% endblock %}

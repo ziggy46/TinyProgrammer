@@ -201,6 +201,35 @@
     </section>
 
     <section class="settings-section">
+        <h2>GIF Recording</h2>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="gif_recording_enabled"
+                       {% if config.GIF_RECORDING_ENABLED %}checked{% endif %}>
+                Enable GIF recording during WATCH state
+            </label>
+            <p class="hint">Records an animated GIF of the canvas each time a program runs. GIFs are viewable on the <a href="{{ url_for('gallery') }}">Gallery</a> page.</p>
+        </div>
+
+        <div class="form-group">
+            <label for="gif_fps">Frame Rate (fps)</label>
+            <input type="number" name="gif_fps" id="gif_fps"
+                   value="{{ config.GIF_FPS or 10 }}"
+                   min="1" max="30">
+            <p class="hint">Higher fps = smoother but larger files. 10 fps is a good default.</p>
+        </div>
+
+        <div class="form-group">
+            <label for="gif_max_duration">Max Duration (seconds)</label>
+            <input type="number" name="gif_max_duration" id="gif_max_duration"
+                   value="{{ config.GIF_MAX_DURATION or 30 }}"
+                   min="5" max="120">
+            <p class="hint">Recording stops after this many seconds even if the program is still running. Keeps file sizes manageable.</p>
+        </div>
+    </section>
+
+    <section class="settings-section">
         <h2>Schedule (Clock In / Clock Out)</h2>
 
         <div class="form-group">

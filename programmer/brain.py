@@ -98,6 +98,7 @@ class Brain:
         self.current_process = None
         self._force_screensaver = False
         self.liked_store = LikedStore()
+        self._current_gif_bytes = None
 
     def request_restart(self):
         """Request a restart - skip to next program cycle."""
@@ -535,7 +536,7 @@ class Brain:
     def _do_watch(self):
         """
         Watch state.
-        
+
         Let the program run for a while, display its output.
         """
         self.terminal.set_status("WATCHING", "proud")
@@ -544,8 +545,19 @@ class Brain:
         duration = random.randint(config.WATCH_DURATION_MIN, config.WATCH_DURATION_MAX)
         print(f"[Brain] Watch duration: {duration}s (range: {config.WATCH_DURATION_MIN}-{config.WATCH_DURATION_MAX})")
 
+        # Start GIF recorder if enabled
+        gif_recorder = None
+        if getattr(config, "GIF_RECORDING_ENABLED", False):
+            from display.gif_recorder import GifRecorder
+            gif_recorder = GifRecorder()
+            gif_recorder.start(
+                fps=getattr(config, "GIF_FPS", 10),
+                max_duration=getattr(config, "GIF_MAX_DURATION", 30),
+            )
+
         last_output = ""
-        
+        canvas_drew = False  # track whether this program used canvas drawing at all
+
         while time.time() - start_time < duration:
             # Check for restart or screensaver request
             if self._restart_requested or self._force_screensaver:
@@ -570,6 +582,7 @@ class Brain:
                     if line:
                         if line.startswith("CMD:"):
                             self.terminal.process_draw_command(line)
+                            canvas_drew = True
                         else:
                             self.terminal.type_string(line)
                         last_output = line
@@ -578,7 +591,18 @@ class Brain:
 
             # Flush display to show drawing updates
             self.terminal.tick()
-        
+
+            # Capture canvas frame for GIF (only once drawing has started)
+            if gif_recorder and canvas_drew and self.terminal.canvas_surface is not None:
+                gif_recorder.capture(self.terminal.canvas_surface)
+
+        # Stop recorder and discard bytes if program never drew anything
+        if gif_recorder:
+            gif_bytes = gif_recorder.stop()
+            self._current_gif_bytes = gif_bytes if canvas_drew else None
+        else:
+            self._current_gif_bytes = None
+
         # Hide canvas popup
         self.terminal.hide_canvas()
 
@@ -720,7 +744,7 @@ class Brain:
         self.terminal.set_status("ARCHIVING")
         
         try:
-            self.archive.save(
+            metadata = self.archive.save(
                 code=self.current_program.code,
                 program_type=self.current_program.program_type,
                 mood=self.personality.get_mood_status(),
@@ -728,9 +752,13 @@ class Brain:
                 thought_process=self.current_program.thought_process,
                 error_message=self.current_program.error_message
             )
+            if metadata and self._current_gif_bytes:
+                self.archive.save_gif(metadata.id, self._current_gif_bytes)
             self.terminal.type_string(f"\n// Saved to archive.\n")
         except Exception as e:
             print(f"[Brain] Archive error: {e}")
+        finally:
+            self._current_gif_bytes = None
         
         self.personality.update_mood(self.current_program.success)
         self.programs_written += 1
